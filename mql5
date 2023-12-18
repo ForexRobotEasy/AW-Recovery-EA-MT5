@@ -1,0 +1,115 @@
+
+//+------------------------------------------------------------------+
+//|                                                   AW Recovery EA MT5|
+//|                                         https://www.forexroboteasy.com|
+//|                                                         Forex Robot Easy Team|
+//+------------------------------------------------------------------+
+
+//--- Close Other Windows
+void CloseOtherWindows(string instrument)
+{
+   int total_windows = ChartGetInteger(0, CHART_WINDOWS_TOTAL);
+   for(int i = 0; i < total_windows; i++)
+   {
+      string window_instrument = ChartGetString(0, CHART_WINDOW_SYMBOL, i);
+      
+      if(window_instrument != instrument)
+      {
+         ExpertRemove();
+         ChartClose(ChartID());
+      }
+   }
+}
+
+//--- Reset TakeProfit and StopLoss Levels
+void ResetLevels()
+{
+   int total_orders = OrdersTotal();
+   for(int i = 0; i < total_orders; i++)
+   {
+      if(OrderSelect(i, SELECT_BY_POS))
+      {
+         OrderModify(OrderTicket(), OrderOpenPrice(), OrderOpenPrice(), 0, 0, CLR_NONE);
+      }
+   }
+}
+
+//--- Delete Pending Orders
+void DeletePendingOrders()
+{
+   int total_orders = OrdersTotal();
+   for(int i = 0; i < total_orders; i++)
+   {
+      if(OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
+      {
+         if(OrderType() == OP_PENDING)
+         {
+            OrderDelete(OrderTicket());
+         }
+      }
+   }
+}
+
+//--- Close Processed Profitable Orders
+void CloseProfitableOrders()
+{
+   int total_orders = OrdersTotal();
+   for(int i = 0; i < total_orders; i++)
+   {
+      if(OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
+      {
+         if(OrderProfit() > 0)
+         {
+            OrderClose(OrderTicket(), OrderLots(), Bid, Slippage, CLR_NONE);
+         }
+      }
+   }
+}
+
+//--- Utilize Profit to Offset Unprofitable Orders
+void UtilizeProfit()
+{
+   int total_orders = OrdersTotal();
+   for(int i = 0; i < total_orders; i++)
+   {
+      if(OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
+      {
+         if(OrderProfit() < 0)
+         {
+            double profit = MathAbs(OrderProfit());
+            double volume_reduction = profit / MarketInfo(OrderSymbol(), MODE_MARGINREQUIRED);
+            OrderClose(OrderTicket(), volume_reduction, Bid, Slippage, CLR_NONE);
+         }
+      }
+   }
+}
+
+//--- Lock Losing Position
+void LockLosingPosition()
+{
+   int total_orders = OrdersTotal();
+   for(int i = 0; i < total_orders; i++)
+   {
+      if(OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
+      {
+         if(OrderProfit() < 0)
+         {
+            double lock_volume = OrderLots() * 2;
+            OrderSend(OrderSymbol(), OP_BUY, lock_volume, OrderClosePrice(), 0, 0, 0, 'Lock Order', 0, 0, CLR_NONE);
+         }
+      }
+   }
+}
+
+//--- Main Program
+void OnStart()
+{
+   string instrument = 'EURUSD'; // Specify the instrument here
+   
+   CloseOtherWindows(instrument);
+   ResetLevels();
+   DeletePendingOrders();
+   CloseProfitableOrders();
+   UtilizeProfit();
+   LockLosingPosition();
+}
